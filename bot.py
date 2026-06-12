@@ -162,5 +162,7 @@ async def on_raw_reaction_add(payload):
         del pending_applications[applicant_id]
 
 if __name__ == "__main__":
-    token = os.environ.get("DISCORD_TOKEN") or input("🔑 Токен: ").strip()
-    client.run(token)
+   token = os.environ.get("DISCORD_TOKEN")
+if not token:
+    raise ValueError("DISCORD_TOKEN не задан!")
+client.run(token)
