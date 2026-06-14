@@ -242,6 +242,17 @@ async def on_message(message):
         await msg.delete()
         return
 
+    # ── !помощь ───────────────────────────────────────────────────────
+    if low == "!помощь":
+        embed = discord.Embed(title="📖 Команды VELNORA", color=discord.Color.blue())
+        embed.add_field(name="👥 Состав", value="`!состав` — список игроков по ролям\n`!инфо @игрок` — инфо об игроке\n`!статс @игрок` — FACEIT профиль", inline=False)
+        embed.add_field(name="⚔️ Практики", value="`!практика 20:00 карта` — анонс практики с голосованием", inline=False)
+        embed.add_field(name="🔨 Модерация (только капитан)", value="`!варн @игрок причина` — предупреждение (3 = кик)\n`!кик @игрок причина` — кик с сервера\n`!очистить 10` — удалить N сообщений", inline=False)
+        embed.add_field(name="📋 Вступление", value="`!анкета` — подать заявку в команду", inline=False)
+        embed.set_footer(text="VELNORA CS2 Bot")
+        await message.channel.send(embed=embed)
+        return
+
     # ── !практика <время> <заметка> ───────────────────────────────────
     if low.startswith("!практика"):
         if not is_captain(message.author, guild):
