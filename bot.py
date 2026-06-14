@@ -12,7 +12,6 @@ client = discord.Client(intents=intents)
 pending_applications = {}
 faceit_links = {}
 warnings = {}  # {user_id: count}
-# {message_id: {"embed": embed, "coming": [user_ids], "time": str, "note": str}}
 practice_messages = {}
 
 @client.event
@@ -24,7 +23,6 @@ def is_captain(member, guild):
     captain_role = discord.utils.find(lambda r: "капитан" in r.name.lower(), guild.roles)
     return captain_role and captain_role in member.roles
 
-# ── Авто-роль новичка ─────────────────────────────────────────────────
 @client.event
 async def on_member_join(member):
     guild = member.guild
@@ -148,15 +146,14 @@ async def on_message(message):
         roles_list = [r.name for r in target.roles if not r.is_default()]
         faceit_url = faceit_links.get(target.id, "Не указан")
         warns = warnings.get(target.id, 0)
-
-        embed = discord.Embed(title=f"ℹ️ Информация об игроке", color=discord.Color.blue())
+        embed = discord.Embed(title="ℹ️ Информация об игроке", color=discord.Color.blue())
         embed.set_thumbnail(url=target.display_avatar.url)
-        embed.add_field(name="👤 Ник",        value=target.display_name,           inline=True)
-        embed.add_field(name="🏷️ Тег",        value=str(target),                   inline=True)
-        embed.add_field(name="📅 На сервере с", value=target.joined_at.strftime("%d.%m.%Y") if target.joined_at else "—", inline=True)
-        embed.add_field(name="🎮 FACEIT",      value=faceit_url,                   inline=False)
-        embed.add_field(name="🎭 Роли",        value=", ".join(roles_list) or "—", inline=False)
-        embed.add_field(name="⚠️ Варны",       value=f"{warns}/3",                 inline=True)
+        embed.add_field(name="👤 Ник",          value=target.display_name,           inline=True)
+        embed.add_field(name="🏷️ Тег",          value=str(target),                   inline=True)
+        embed.add_field(name="📅 На сервере с",  value=target.joined_at.strftime("%d.%m.%Y") if target.joined_at else "—", inline=True)
+        embed.add_field(name="🎮 FACEIT",        value=faceit_url,                   inline=False)
+        embed.add_field(name="🎭 Роли",          value=", ".join(roles_list) or "—", inline=False)
+        embed.add_field(name="⚠️ Варны",         value=f"{warns}/3",                 inline=True)
         await message.channel.send(embed=embed)
         return
 
@@ -168,26 +165,21 @@ async def on_message(message):
         if not message.mentions:
             await message.channel.send("Использование: `!варн @игрок причина`", delete_after=5)
             return
-
         target = message.mentions[0]
         parts = content.split()
         reason = " ".join(parts[2:]) if len(parts) > 2 else "Причина не указана"
-
         warnings[target.id] = warnings.get(target.id, 0) + 1
         warn_count = warnings[target.id]
-
         embed = discord.Embed(title="⚠️ Предупреждение", color=discord.Color.yellow())
-        embed.add_field(name="👤 Игрок",   value=target.mention,   inline=True)
+        embed.add_field(name="👤 Игрок",   value=target.mention,    inline=True)
         embed.add_field(name="⚠️ Варны",   value=f"{warn_count}/3", inline=True)
-        embed.add_field(name="📝 Причина", value=reason,            inline=False)
+        embed.add_field(name="📝 Причина", value=reason,             inline=False)
         embed.set_footer(text=f"Выдал: {message.author.display_name}")
         await message.channel.send(embed=embed)
-
         try:
             await target.send(f"⚠️ Ты получил предупреждение в **VELNORA**\nПричина: {reason}\nВарны: {warn_count}/3")
         except:
             pass
-
         if warn_count >= 3:
             await message.channel.send(f"🔨 {target.mention} получил 3 варна и будет кикнут!")
             try:
@@ -199,6 +191,32 @@ async def on_message(message):
             warnings.pop(target.id, None)
         return
 
+    # ── !снятьварн @игрок ─────────────────────────────────────────────
+    if low.startswith("!снятьварн"):
+        if not is_captain(message.author, guild):
+            await message.channel.send(f"{message.author.mention} ❌ Только капитан.", delete_after=5)
+            return
+        if not message.mentions:
+            await message.channel.send("Использование: `!снятьварн @игрок`", delete_after=5)
+            return
+        target = message.mentions[0]
+        current = warnings.get(target.id, 0)
+        if current == 0:
+            await message.channel.send(f"{target.display_name} не имеет предупреждений.", delete_after=5)
+            return
+        warnings[target.id] = max(0, current - 1)
+        new_count = warnings[target.id]
+        embed = discord.Embed(title="✅ Предупреждение снято", color=discord.Color.green())
+        embed.add_field(name="👤 Игрок", value=target.mention,   inline=True)
+        embed.add_field(name="⚠️ Варны", value=f"{new_count}/3", inline=True)
+        embed.set_footer(text=f"Снял: {message.author.display_name}")
+        await message.channel.send(embed=embed)
+        try:
+            await target.send(f"✅ С тебя снято предупреждение в **VELNORA**. Текущие варны: {new_count}/3")
+        except:
+            pass
+        return
+
     # ── !кик @игрок причина ───────────────────────────────────────────
     if low.startswith("!кик"):
         if not is_captain(message.author, guild):
@@ -207,11 +225,9 @@ async def on_message(message):
         if not message.mentions:
             await message.channel.send("Использование: `!кик @игрок причина`", delete_after=5)
             return
-
         target = message.mentions[0]
         parts = content.split()
         reason = " ".join(parts[2:]) if len(parts) > 2 else "Причина не указана"
-
         try:
             await target.send(f"❌ Ты кикнут с сервера **VELNORA**.\nПричина: {reason}")
         except:
@@ -237,7 +253,7 @@ async def on_message(message):
             amount = 10
         await message.delete()
         deleted = await message.channel.purge(limit=amount)
-        msg = await message.channel.send(f"🗑️ Удалено {len(deleted)} сообщений.", )
+        msg = await message.channel.send(f"🗑️ Удалено {len(deleted)} сообщений.")
         await asyncio.sleep(3)
         await msg.delete()
         return
@@ -247,7 +263,7 @@ async def on_message(message):
         embed = discord.Embed(title="📖 Команды VELNORA", color=discord.Color.blue())
         embed.add_field(name="👥 Состав", value="`!состав` — список игроков по ролям\n`!инфо @игрок` — инфо об игроке\n`!статс @игрок` — FACEIT профиль", inline=False)
         embed.add_field(name="⚔️ Практики", value="`!практика 20:00 карта` — анонс практики с голосованием", inline=False)
-        embed.add_field(name="🔨 Модерация (только капитан)", value="`!варн @игрок причина` — предупреждение (3 = кик)\n`!кик @игрок причина` — кик с сервера\n`!очистить 10` — удалить N сообщений", inline=False)
+        embed.add_field(name="🔨 Модерация (только капитан)", value="`!варн @игрок причина` — предупреждение (3 = кик)\n`!снятьварн @игрок` — снять варн\n`!кик @игрок причина` — кик с сервера\n`!очистить 10` — удалить N сообщений", inline=False)
         embed.add_field(name="📋 Вступление", value="`!анкета` — подать заявку в команду", inline=False)
         embed.set_footer(text="VELNORA CS2 Bot")
         await message.channel.send(embed=embed)
@@ -258,33 +274,27 @@ async def on_message(message):
         if not is_captain(message.author, guild):
             await message.channel.send(f"{message.author.mention} ❌ Только капитан.", delete_after=5)
             return
-
         parts = content.split()
         time_str = parts[1] if len(parts) > 1 else "время не указано"
         note = " ".join(parts[2:]) if len(parts) > 2 else ""
-
         ping_roles = []
         for rname in ["основной состав", "основа", "секонд состав", "замена", "стратег"]:
             r = discord.utils.find(lambda r: r.name.lower() == rname, guild.roles)
             if r:
                 ping_roles.append(r.mention)
-
         embed = discord.Embed(title="⚔️ АНОНС ПРАКТИКИ", color=discord.Color.red(), timestamp=datetime.utcnow())
-        embed.add_field(name="🕐 Время",       value=f"**{time_str}**",              inline=True)
-        embed.add_field(name="👤 Организатор", value=message.author.display_name,    inline=True)
+        embed.add_field(name="🕐 Время",       value=f"**{time_str}**",           inline=True)
+        embed.add_field(name="👤 Организатор", value=message.author.display_name, inline=True)
         if note:
             embed.add_field(name="📝 Заметка", value=note, inline=False)
         embed.add_field(name="✅ Придут (0)", value="*Никто ещё не отметился*", inline=False)
         embed.set_footer(text="VELNORA CS2 • Поставь ✅ если придёшь")
-
         sched_ch = discord.utils.get(guild.text_channels, name="📅・расписание")
         target_ch = sched_ch if sched_ch else message.channel
-
         ping_text = " ".join(ping_roles) if ping_roles else ""
         announce = await target_ch.send(content=f"🔔 {ping_text}", embed=embed)
         await announce.add_reaction("✅")
         await announce.add_reaction("❌")
-
         practice_messages[announce.id] = {
             "time": time_str,
             "note": note,
@@ -292,7 +302,6 @@ async def on_message(message):
             "coming": [],
             "not_coming": []
         }
-
         if target_ch != message.channel:
             await message.channel.send(f"✅ Анонс отправлен в {target_ch.mention}!", delete_after=5)
         try:
@@ -309,17 +318,13 @@ async def on_raw_reaction_add(payload):
     guild = client.get_guild(payload.guild_id)
     if not guild:
         return
-
     member = guild.get_member(payload.user_id)
     if not member or member.bot:
         return
-
     emoji = str(payload.emoji)
 
-    # ── Практика — обновляем список ───────────────────────────────────
     if payload.message_id in practice_messages:
         data = practice_messages[payload.message_id]
-
         if emoji == "✅":
             if payload.user_id not in data["coming"]:
                 data["coming"].append(payload.user_id)
@@ -332,34 +337,17 @@ async def on_raw_reaction_add(payload):
                 data["coming"].remove(payload.user_id)
         else:
             return
-
-        # Обновляем embed
-        coming_names = []
-        for uid in data["coming"]:
-            m = guild.get_member(uid)
-            if m:
-                coming_names.append(f"✅ {m.display_name}")
-
-        not_coming_names = []
-        for uid in data["not_coming"]:
-            m = guild.get_member(uid)
-            if m:
-                not_coming_names.append(f"❌ {m.display_name}")
-
+        coming_names = [f"✅ {guild.get_member(uid).display_name}" for uid in data["coming"] if guild.get_member(uid)]
+        not_coming_names = [f"❌ {guild.get_member(uid).display_name}" for uid in data["not_coming"] if guild.get_member(uid)]
         embed = discord.Embed(title="⚔️ АНОНС ПРАКТИКИ", color=discord.Color.red(), timestamp=datetime.utcnow())
-        embed.add_field(name="🕐 Время",       value=f"**{data['time']}**",       inline=True)
-        embed.add_field(name="👤 Организатор", value=data["organizer"],            inline=True)
+        embed.add_field(name="🕐 Время",       value=f"**{data['time']}**",    inline=True)
+        embed.add_field(name="👤 Организатор", value=data["organizer"],         inline=True)
         if data["note"]:
             embed.add_field(name="📝 Заметка", value=data["note"], inline=False)
-
-        coming_text = "\n".join(coming_names) if coming_names else "*Никто ещё не отметился*"
-        embed.add_field(name=f"✅ Придут ({len(coming_names)})", value=coming_text, inline=False)
-
+        embed.add_field(name=f"✅ Придут ({len(coming_names)})", value="\n".join(coming_names) if coming_names else "*Никто ещё не отметился*", inline=False)
         if not_coming_names:
             embed.add_field(name=f"❌ Не придут ({len(not_coming_names)})", value="\n".join(not_coming_names), inline=False)
-
         embed.set_footer(text="VELNORA CS2 • Поставь ✅ если придёшь")
-
         try:
             channel = guild.get_channel(payload.channel_id)
             msg = await channel.fetch_message(payload.message_id)
@@ -368,22 +356,16 @@ async def on_raw_reaction_add(payload):
             pass
         return
 
-    # ── Заявки — капитан одобряет/отклоняет ──────────────────────────
     apps_ch = discord.utils.get(guild.text_channels, name="📬・заявки")
     if not apps_ch or payload.channel_id != apps_ch.id:
         return
-
     captain_role = discord.utils.find(lambda r: "капитан" in r.name.lower(), guild.roles)
     if not captain_role or captain_role not in member.roles:
         return
-
-    applicant_id = next((uid for uid, d in pending_applications.items()
-                         if d["msg_id"] == payload.message_id), None)
+    applicant_id = next((uid for uid, d in pending_applications.items() if d["msg_id"] == payload.message_id), None)
     if not applicant_id:
         return
-
     applicant = guild.get_member(applicant_id)
-
     if emoji == "✅":
         r_second = discord.utils.find(lambda r: r.name.lower() == "секонд состав", guild.roles)
         r_new = discord.utils.find(lambda r: "новичок" in r.name.lower(), guild.roles)
@@ -404,7 +386,6 @@ async def on_raw_reaction_add(payload):
         except:
             pass
         del pending_applications[applicant_id]
-
     elif emoji == "❌":
         if applicant:
             try:
@@ -425,47 +406,28 @@ async def on_raw_reaction_remove(payload):
         return
     if payload.message_id not in practice_messages:
         return
-
     guild = client.get_guild(payload.guild_id)
     if not guild:
         return
-
     data = practice_messages[payload.message_id]
     emoji = str(payload.emoji)
-
     if emoji == "✅" and payload.user_id in data["coming"]:
         data["coming"].remove(payload.user_id)
     elif emoji == "❌" and payload.user_id in data["not_coming"]:
         data["not_coming"].remove(payload.user_id)
     else:
         return
-
-    coming_names = []
-    for uid in data["coming"]:
-        m = guild.get_member(uid)
-        if m:
-            coming_names.append(f"✅ {m.display_name}")
-
-    not_coming_names = []
-    for uid in data["not_coming"]:
-        m = guild.get_member(uid)
-        if m:
-            not_coming_names.append(f"❌ {m.display_name}")
-
+    coming_names = [f"✅ {guild.get_member(uid).display_name}" for uid in data["coming"] if guild.get_member(uid)]
+    not_coming_names = [f"❌ {guild.get_member(uid).display_name}" for uid in data["not_coming"] if guild.get_member(uid)]
     embed = discord.Embed(title="⚔️ АНОНС ПРАКТИКИ", color=discord.Color.red(), timestamp=datetime.utcnow())
     embed.add_field(name="🕐 Время",       value=f"**{data['time']}**",    inline=True)
     embed.add_field(name="👤 Организатор", value=data["organizer"],         inline=True)
     if data["note"]:
         embed.add_field(name="📝 Заметка", value=data["note"], inline=False)
-
-    coming_text = "\n".join(coming_names) if coming_names else "*Никто ещё не отметился*"
-    embed.add_field(name=f"✅ Придут ({len(coming_names)})", value=coming_text, inline=False)
-
+    embed.add_field(name=f"✅ Придут ({len(coming_names)})", value="\n".join(coming_names) if coming_names else "*Никто ещё не отметился*", inline=False)
     if not_coming_names:
         embed.add_field(name=f"❌ Не придут ({len(not_coming_names)})", value="\n".join(not_coming_names), inline=False)
-
     embed.set_footer(text="VELNORA CS2 • Поставь ✅ если придёшь")
-
     try:
         channel = guild.get_channel(payload.channel_id)
         msg = await channel.fetch_message(payload.message_id)
