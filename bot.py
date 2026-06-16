@@ -1,6 +1,3 @@
-Да, логичнее. Вот полный код с двумя отдельными вопросами:
-
-```python
 import discord
 import asyncio
 import os
@@ -483,6 +480,3 @@ if __name__ == "__main__":
     if not token:
         raise ValueError("DISCORD_TOKEN не задан!")
     client.run(token)
-```
-
-Анкета теперь 6 вопросов — имя, возраст, ник в CS2, FACEIT, позиция, о себе. Ник на сервере ставится как `Имя | ник_в_CS2 | позиция`.
